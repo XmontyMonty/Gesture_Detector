@@ -15,6 +15,7 @@ from tensorflow.keras.preprocessing import image
 import cv2
 from threading import Thread
 import time
+import ctypes
 
 # ===== Plan =====
 """
@@ -61,7 +62,7 @@ def get_number_prediction(temp_model, temp_frame):
 
 def collect_picture(camera, pred_model):
     result = []
-    while len(result) < 50:
+    while len(result) < 25:
         temp, temp_frame = camera.read()
         temp_frame = process_frame(temp_frame)
         result.append(get_number_prediction(pred_model, temp_frame))
@@ -102,24 +103,70 @@ def show_camera(cam):
     cv2.destroyAllWindows()
 
 
+def get_single_action(cam, model):
+    results = []
+    action_counter = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+    while len(results) < 15:
+        ret, frame = cam.read()
+        frame = process_frame(frame)
+        results.append(get_number_prediction(model, frame))
+    for action in results:
+        action_counter[action] += 1
+    max_val = max(list(action_counter.values()))
+    for key in action_counter:
+        if action_counter[key] == max_val:
+            return key
+
+
+def switch_windows_right():
+    user32 = ctypes.windll.user32
+    user32.keybd_event(0x5B, 0, 0, 0)
+    user32.keybd_event(0xA2, 0, 0, 0)
+    user32.keybd_event(0x27, 0, 0, 0)
+    user32.keybd_event(0x5B, 0, 2, 0)
+    user32.keybd_event(0xA2, 0, 2, 0)
+    user32.keybd_event(0x27, 0, 2, 0)
+
+
+def switch_windows_left():
+    user32 = ctypes.windll.user32
+    user32.keybd_event(0x5B, 0, 0, 0)
+    user32.keybd_event(0xA2, 0, 0, 0)
+    user32.keybd_event(0x25, 0, 0, 0)
+    user32.keybd_event(0x5B, 0, 2, 0)
+    user32.keybd_event(0xA2, 0, 2, 0)
+    user32.keybd_event(0x25, 0, 2, 0)
+
+
+def close_windows():
+    user32 = ctypes.windll.user32
+    user32.keybd_event(0x5B, 0, 0, 0)
+    user32.keybd_event(0x44, 0, 0, 0)
+    user32.keybd_event(0x25, 0, 2, 0)
+    user32.keybd_event(0x5B, 0, 2, 0)
+
+
 if __name__ == "__main__":
     cam = cv2.VideoCapture(0)
-    model = load_model("Model_v1.15.h5")
+    model = load_model("Model_v2.9.h5")
     classes = {0: "Closed_Fist", 1: "Open_Hand", 2: "Other",
                3: "Swipe_Left", 4: "Swipe_Right"}
     # thread = Thread(target=show_camera(cam))
     # thread.start()
     # print("started")
     while True:
-        ret1, frame1 = cam.read()
-        frame1 = process_frame(frame1)
-        time.sleep(0.5)
-        ret2, frame2 = cam.read()
-        frame2 = process_frame(frame2)
-        if get_prediction(model, frame1) != "Other" and \
-                get_prediction(model, frame2) != "Other":
-            actions = getaction(collect_picture(cam, model))
-            print(actions)
-
-        time.sleep(0.1)
-        print(get_prediction(model, frame1))
+        action1 = get_single_action(cam, model)
+        if action1 == 1:
+            action2 = get_single_action(cam, model)
+            action3 = get_single_action(cam, model)
+            if action2 == 3 or action3 == 3:
+                switch_windows_right()
+                print("Open Hand ==> Swipe Left")
+            elif action2 == 4 or action3 == 4:
+                switch_windows_left()
+                print("Open Hand ==> Swipe Right")
+            elif action2 == 0 or action3 == 0:
+                close_windows()
+                print("Open Hand ==> Closed Fist")
+        print(classes[action1])
+        time.sleep(0.005)

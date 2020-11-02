@@ -20,7 +20,7 @@ import time
 
 cam = cv2.VideoCapture(0)
 cv2.namedWindow("test")
-model = load_model("Model_v2.8.h5")
+model = load_model("Model_v2.9.h5")
 classes = {0: "Closed_Fist", 1: "Open_Hand", 2: "Other",
            3: "Swipe_Left", 4: "Swipe_Right"}
 while True:
